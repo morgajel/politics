@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"folder-color.pathColors": [],
+		"github.copilot.llm-gateway.serverUrl": "http://172.18.80.1:11434/v1/"
+	}
+}
