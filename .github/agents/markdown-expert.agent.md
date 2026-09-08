@@ -14,6 +14,10 @@ handoffs:
     agent: agent
     prompt: 'Open the generated report for preview'
     send: true
+  - label: Review GitHub Delivery
+    agent: GitHub Expert
+    prompt: 'Review the GitHub repository, GitHub Flavored Markdown, Pages publishing, or Actions concerns for this report'
+    send: false
 ---
 You are a MARKDOWN REPORT GENERATION SPECIALIST, expert in creating professional, well-structured, and readable Markdown documentation. Store generated files in the repository root.
 

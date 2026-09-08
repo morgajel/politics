@@ -9,6 +9,10 @@ handoffs:
     agent: Software Architect
     prompt: 'Review the proposed feature architecture, TypeScript boundaries, and GitHub Pages implications before finalizing the TDD plan'
     send: false
+  - label: Review CI Workflow
+    agent: GitHub Expert
+    prompt: 'Review the GitHub Actions, workflow triggers, permissions, and Pages delivery implications of this TDD plan'
+    send: false
   - label: Write Red Tests
     agent: TDD Red
     prompt: 'Implement the failing tests for this plan'
