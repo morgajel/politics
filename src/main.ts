@@ -1,5 +1,5 @@
 import "./styles.css";
-import { congressLabel, isSnapshotStale, lookupVotingRecord, type LookupResult, type Snapshot } from "./domain";
+import { congressLabel, congressesForBioguideId, isSnapshotStale, lookupVotingRecord, type LookupResult, type Snapshot } from "./domain";
 import { sampleSnapshot } from "./sample-data";
 
 const app = document.querySelector<HTMLDivElement>("#app");
@@ -40,13 +40,26 @@ app.innerHTML = `
 `;
 
 const form = document.querySelector<HTMLFormElement>("#lookup-form")!;
+const bioguideInput = document.querySelector<HTMLInputElement>("#bioguide")!;
+const congressSelect = document.querySelector<HTMLSelectElement>("#congress")!;
 const result = document.querySelector<HTMLElement>("#result")!;
 form.addEventListener("submit", (event) => {
   event.preventDefault();
-  const id = new FormData(form).get("bioguide")?.toString() ?? "";
-  const congress = Number(new FormData(form).get("congress"));
+  const id = bioguideInput.value;
+  const selectedCongress = Number(congressSelect.value);
+  const availableCongresses = congressesForBioguideId(id, snapshot);
+  updateCongressOptions(availableCongresses, selectedCongress);
+  const congress = Number(congressSelect.value);
   renderResult(lookupVotingRecord(id, congress, snapshot));
 });
+
+function updateCongressOptions(availableCongresses: number[], preferredCongress?: number): void {
+  if (availableCongresses.length === 0) return;
+  const congress = availableCongresses.includes(preferredCongress ?? 0) ? preferredCongress : availableCongresses[0];
+  congressSelect.innerHTML = availableCongresses
+    .map((number) => `<option value="${number}"${number === congress ? " selected" : ""}>${congressLabel(number)}</option>`)
+    .join("");
+}
 
 function renderResult(record: LookupResult): void {
   const stale = isStale(snapshot.generatedAt);
@@ -111,5 +124,8 @@ async function loadSnapshot(): Promise<void> {
   } catch {
     // The checked-in fixture keeps the static UI usable when the snapshot is unavailable.
   }
-  renderResult(lookupVotingRecord("R000570", 113, snapshot));
+  const defaultId = bioguideInput.value;
+  const availableCongresses = congressesForBioguideId(defaultId, snapshot);
+  updateCongressOptions(availableCongresses, Number(congressSelect.value));
+  renderResult(lookupVotingRecord(defaultId, Number(congressSelect.value), snapshot));
 }

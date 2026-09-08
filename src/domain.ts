@@ -88,6 +88,20 @@ export function validateBioguideId(input: string):
   return { valid: true, value };
 }
 
+export function congressesForBioguideId(bioguideInput: string, snapshot: Snapshot): number[] {
+  const validation = validateBioguideId(bioguideInput);
+  if (!validation.valid) return [];
+
+  const politician = snapshot.politicians.find((member) => member.bioguideId === validation.value);
+  if (politician?.icpsr === undefined) return [];
+
+  return [...new Set(
+    snapshot.votes
+      .filter((vote) => vote.icpsr === politician.icpsr)
+      .map((vote) => vote.congress),
+  )].sort((left, right) => left - right);
+}
+
 export function congressLabel(congress: number): string {
   if (!Number.isInteger(congress) || congress < 1) {
     throw new Error("Congress number must be a positive integer.");

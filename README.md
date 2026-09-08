@@ -9,6 +9,19 @@ npm install
 npm run dev
 ```
 
+## Netlify previews
+
+Netlify builds this project with `npm run build` and publishes `dist`. Pull requests receive public Deploy Preview URLs, while branch builds receive branch preview URLs. Enable Netlify's `Delete deploys when a pull request is closed` setting to clean up preview deploys automatically.
+
+To test the production artifact locally:
+
+```sh
+npm run build
+npm run preview
+```
+
+The preview server is available at `http://localhost:4173`. The Netlify redirect rule preserves direct navigation to future client-side routes.
+
 The current UI uses a small fixture in `src/sample-data.ts`. The production data boundary is the versioned `Snapshot` contract in `src/domain.ts`; the daily ingestion workflow should replace the fixture with normalized public JSON before deployment.
 
 ## Data rules

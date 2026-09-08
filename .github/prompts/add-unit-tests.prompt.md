@@ -1,54 +1,49 @@
 ---
 name: add-unit-tests
-description: Generates unit tests for existing code following organization standards
+description: "Generate TypeScript/Vitest unit tests for existing code following this repository's conventions."
 ---
 
 # Add Unit Tests
 
-Generate comprehensive unit tests for the specified code.
+Generate focused tests for the specified TypeScript module or function. Prefer deterministic domain behavior and existing fixtures over browser or network tests.
 
 ## Input Required
 
-- Target class/method to test
-- Test type (unit, integration, or both)
+- Target module or function
+- Test type: unit, browser, integration, or both
 
 ## Test Standards
 
 ### Naming Convention
-`{MethodName}_{Scenario}_{ExpectedResult}`
-
-Examples:
-- `GetByIdAsync_WhenExists_ReturnsEmployee`
-- `GetAllAsync_WithInvalidOffset_ThrowsArgumentException`
+Use descriptive Vitest test names that state the scenario and expected result.
 
 ### Structure Requirements
 
 1. **File Location**
-   - Controllers: `tests/Api.Tests/Controllers/`
-   - Services: `tests/Api.Tests/Services/`
-   - Repositories: `tests/Api.Tests/Repositories/`
+   - Domain and utility tests: `tests/` using the existing `*.test.ts` convention.
+   - Browser or integration tests: only when an existing runner and convention support them.
 
-2. **AAA Pattern** (mandatory comments)
-   ```csharp
-   // Arrange
-   // Act
-   // Assert
+2. **Test APIs**
+   ```typescript
+   it("describes the expected behavior", () => {
+     const result = functionUnderTest(input);
+     expect(result).toEqual(expected);
+   });
    ```
 
 3. **Organization**
-   - Group related tests with `#region` blocks
-   - One test class per source class
+   - Group related behavior with `describe` blocks
+   - Keep one behavior per `it` block
 
-4. **Mocking**
-   - Use Moq for dependencies
-   - Use TestDataBuilders for test data
-   - Use InMemory database for repository tests
+4. **Fixtures and dependencies**
+   - Reuse `src/sample-data.ts` or create a focused local fixture when needed
+   - Use Vitest mocks only for real module boundaries
+   - Do not invent databases, HTTP endpoints, mock libraries, or framework-specific helpers
 
 ## Output Checklist
 
-- [ ] Test file in correct location
-- [ ] Naming follows convention
-- [ ] AAA comments present
-- [ ] #region blocks used
-- [ ] TestDataBuilders utilized
-- [ ] All edge cases covered
+- [ ] Test file is under `tests/` and matches the Vitest configuration
+- [ ] Existing imports, fixtures, and assertion style are followed
+- [ ] Relevant happy path, invalid input, empty state, and boundary cases are covered
+- [ ] Production code is unchanged unless explicitly requested
+- [ ] `npm test` is run and its result is reported

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { congressLabel, isSnapshotStale, lookupVotingRecord, normalizeCastCode, validateBioguideId } from "../src/domain";
+import { congressLabel, congressesForBioguideId, isSnapshotStale, lookupVotingRecord, normalizeCastCode, validateBioguideId } from "../src/domain";
 import { sampleSnapshot } from "../src/sample-data";
 
 describe("Bioguide validation", () => {
@@ -19,6 +19,28 @@ describe("Bioguide validation", () => {
 describe("Congress labels", () => {
   it("renders the approved period format", () => {
     expect(congressLabel(81)).toBe("81st Congress (1949–1951)");
+  });
+});
+
+describe("Congress discovery", () => {
+  it("finds unique Congresses for a Bioguide ID", () => {
+    const result = congressesForBioguideId(" r000570 ", {
+      ...sampleSnapshot,
+      votes: [
+        ...sampleSnapshot.votes,
+        { ...sampleSnapshot.votes[0], congress: 114 },
+        { ...sampleSnapshot.votes[1], congress: 113 },
+      ],
+    });
+    expect(result).toEqual([113, 114]);
+  });
+
+  it("returns no Congresses for an unknown or incomplete ID", () => {
+    expect(congressesForBioguideId("S000001", sampleSnapshot)).toEqual([]);
+    expect(congressesForBioguideId("H000001", {
+      ...sampleSnapshot,
+      politicians: [{ bioguideId: "H000001", name: "Historical Member", chamber: "House" }],
+    })).toEqual([]);
   });
 });
 
