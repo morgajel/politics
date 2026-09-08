@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { congressesForTerms } from "../src/api";
 import { congressLabel, congressesForBioguideId, isSnapshotStale, lookupVotingRecord, normalizeCastCode, validateBioguideId } from "../src/domain";
 import { sampleSnapshot } from "../src/sample-data";
 
@@ -19,6 +20,15 @@ describe("Bioguide validation", () => {
 describe("Congress labels", () => {
   it("renders the approved period format", () => {
     expect(congressLabel(81)).toBe("81st Congress (1949–1951)");
+  });
+});
+
+describe("Congress discovery from legislator terms", () => {
+  it("includes each Congress covered by a member's terms", () => {
+    expect(congressesForTerms([
+      { start: "2011-01-05", end: "2015-01-03" },
+      { start: "2017-01-03", end: "2019-01-03" },
+    ])).toEqual([112, 113, 114, 115]);
   });
 });
 

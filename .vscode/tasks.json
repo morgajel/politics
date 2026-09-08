@@ -1,0 +1,11 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Wait for Vite server",
+            "type": "shell",
+            "command": "sleep 2",
+            "problemMatcher": []
+        }
+    ]
+}

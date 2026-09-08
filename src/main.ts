@@ -1,12 +1,9 @@
 import "./styles.css";
-import { congressLabel, congressesForBioguideId, isSnapshotStale, lookupVotingRecord, type LookupResult, type Snapshot } from "./domain";
-import { sampleSnapshot } from "./sample-data";
+import { congressesForTerms, fetchVotingSnapshot, findLegislatorByBioguideId } from "./api";
+import { congressLabel, lookupVotingRecord, validateBioguideId, type LookupResult } from "./domain";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Application root is missing.");
-
-let snapshot: Snapshot = sampleSnapshot;
-const congresses = [81, 90, 100, 110, 113, 114, 115, 116, 117, 118, 119];
 
 app.innerHTML = `
   <div class="shell">
@@ -18,7 +15,7 @@ app.innerHTML = `
     <section class="lookup-panel" aria-labelledby="lookup-title">
       <div class="section-heading">
         <p class="eyebrow">Individual record</p>
-        <h2 id="lookup-title">Choose a member and Congress</h2>
+        <h2 id="lookup-title">Find a member by Bioguide ID</h2>
       </div>
       <form id="lookup-form" class="lookup-form">
         <label>
@@ -26,13 +23,11 @@ app.innerHTML = `
           <input id="bioguide" name="bioguide" value="R000570" autocomplete="off" spellcheck="false" aria-describedby="id-help" />
           <small id="id-help">Example: R000570</small>
         </label>
-        <label>
+        <label id="congress-field" hidden>
           <span>Congress</span>
-          <select id="congress" name="congress">
-            ${congresses.map((number) => `<option value="${number}">${congressLabel(number)}</option>`).join("")}
-          </select>
+          <select id="congress" name="congress"></select>
         </label>
-        <button type="submit">View record <span aria-hidden="true">→</span></button>
+        <button type="submit">Find member <span aria-hidden="true">→</span></button>
       </form>
     </section>
     <section id="result" aria-live="polite" aria-busy="false"></section>
@@ -41,20 +36,53 @@ app.innerHTML = `
 
 const form = document.querySelector<HTMLFormElement>("#lookup-form")!;
 const bioguideInput = document.querySelector<HTMLInputElement>("#bioguide")!;
+const congressField = document.querySelector<HTMLLabelElement>("#congress-field")!;
 const congressSelect = document.querySelector<HTMLSelectElement>("#congress")!;
 const result = document.querySelector<HTMLElement>("#result")!;
-form.addEventListener("submit", (event) => {
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const id = bioguideInput.value;
-  const selectedCongress = Number(congressSelect.value);
-  const availableCongresses = congressesForBioguideId(id, snapshot);
-  updateCongressOptions(availableCongresses, selectedCongress);
-  const congress = Number(congressSelect.value);
-  renderResult(lookupVotingRecord(id, congress, snapshot));
+  const button = form.querySelector<HTMLButtonElement>("button")!;
+  button.disabled = true;
+  result.innerHTML = `<div class="message-panel"><p class="eyebrow">Looking up member</p><h2>Checking congressional service...</h2></div>`;
+
+  const validation = validateBioguideId(id);
+  if (!validation.valid) {
+    renderResult(lookupVotingRecord(id, 1, { schemaVersion: 1, generatedAt: "", source: "", politicians: [], votes: [] }));
+    button.disabled = false;
+    return;
+  }
+
+  let legislator;
+  try {
+    legislator = await findLegislatorByBioguideId(id);
+  } catch {
+    legislator = undefined;
+  }
+
+  const availableCongresses = legislator ? congressesForTerms(legislator.terms ?? []) : [];
+  updateCongressOptions(availableCongresses, Number(congressSelect.value));
+  const congress = Number(congressSelect.value) || availableCongresses[0];
+  if (!legislator || congress === undefined) {
+    renderResult(lookupVotingRecord(id, 1, { schemaVersion: 1, generatedAt: "", source: "", politicians: [], votes: [] }));
+    button.disabled = false;
+    return;
+  }
+  try {
+    const remoteSnapshot = await fetchVotingSnapshot(legislator, congress);
+    renderResult(lookupVotingRecord(id, congress, remoteSnapshot));
+  } catch {
+    result.innerHTML = `<div class="message-panel"><p class="eyebrow">Lookup unavailable</p><h2>We couldn't load that voting record.</h2><p>The remote voting data provider did not respond. Try again shortly.</p></div>`;
+  }
+  button.disabled = false;
 });
 
 function updateCongressOptions(availableCongresses: number[], preferredCongress?: number): void {
-  if (availableCongresses.length === 0) return;
+  congressField.hidden = availableCongresses.length === 0;
+  if (availableCongresses.length === 0) {
+    congressSelect.innerHTML = "";
+    return;
+  }
   const congress = availableCongresses.includes(preferredCongress ?? 0) ? preferredCongress : availableCongresses[0];
   congressSelect.innerHTML = availableCongresses
     .map((number) => `<option value="${number}"${number === congress ? " selected" : ""}>${congressLabel(number)}</option>`)
@@ -62,11 +90,6 @@ function updateCongressOptions(availableCongresses: number[], preferredCongress?
 }
 
 function renderResult(record: LookupResult): void {
-  const stale = isStale(snapshot.generatedAt);
-  const freshness = snapshot.generatedAt
-    ? `<div class="freshness ${stale ? "is-stale" : "is-fresh"}"><span class="freshness-dot" aria-hidden="true"></span><span>${stale ? "Snapshot is stale" : "Snapshot is current"}</span><time datetime="${snapshot.generatedAt}">Updated ${formatDate(snapshot.generatedAt)}</time></div>`
-    : "";
-
   if (record.status === "invalid-id" || record.status === "unsupported") {
     const heading = record.status === "invalid-id" ? "Check the Bioguide ID." : "We couldn't find that member.";
     result.innerHTML = `<div class="message-panel"><p class="eyebrow">${record.status === "invalid-id" ? "Invalid ID" : "No match"}</p><h2>${heading}</h2><p>${escapeHtml(record.warnings[0]?.message ?? "Check the Bioguide ID and try again.")}</p></div>`;
@@ -88,7 +111,6 @@ function renderResult(record: LookupResult): void {
   result.innerHTML = `
     <div class="result-heading">
       <div><p class="eyebrow">${record.status === "partial" ? "Partial record" : "Verified record"}</p><h2>${escapeHtml(record.politician?.name ?? "Unknown member")}</h2><p class="muted">${record.congressLabel} · ${record.politician?.chamber ?? ""}</p></div>
-      ${freshness}
     </div>
     ${warnings}
     <div class="metrics" aria-label="Vote totals">
@@ -102,10 +124,6 @@ function renderResult(record: LookupResult): void {
   `;
 }
 
-function isStale(timestamp: string): boolean {
-  return isSnapshotStale(timestamp);
-}
-
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat("en-US", { year: "numeric", month: "short", day: "numeric" }).format(new Date(value));
 }
@@ -114,18 +132,3 @@ function escapeHtml(value: string): string {
   return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] ?? character);
 }
 
-void loadSnapshot();
-
-async function loadSnapshot(): Promise<void> {
-  try {
-    const response = await fetch("./data/snapshot.json");
-    if (!response.ok) throw new Error(`Snapshot returned ${response.status}`);
-    snapshot = await response.json() as Snapshot;
-  } catch {
-    // The checked-in fixture keeps the static UI usable when the snapshot is unavailable.
-  }
-  const defaultId = bioguideInput.value;
-  const availableCongresses = congressesForBioguideId(defaultId, snapshot);
-  updateCongressOptions(availableCongresses, Number(congressSelect.value));
-  renderResult(lookupVotingRecord(defaultId, Number(congressSelect.value), snapshot));
-}

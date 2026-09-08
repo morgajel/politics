@@ -22,7 +22,7 @@ npm run preview
 
 The preview server is available at `http://localhost:4173`. The Netlify redirect rule preserves direct navigation to future client-side routes.
 
-The current UI uses a small fixture in `src/sample-data.ts`. The production data boundary is the versioned `Snapshot` contract in `src/domain.ts`; the daily ingestion workflow should replace the fixture with normalized public JSON before deployment.
+The UI discovers a member's Congress history from the public `congress-legislators` current and historical APIs, caching the combined response in browser storage for 24 hours. It fetches the selected Congress's vote and roll-call records directly from Voteview when a lookup is submitted, then maps them into the versioned `Snapshot` contract in `src/domain.ts` for normalization and display.
 
 ## Data rules
 
